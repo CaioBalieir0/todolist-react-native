@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { globalStyles } from '../styles/globalStyles';
 import { createTask, updateTask } from '../database/taskService';
+import { showSuccess, showError } from '../utils/toast';
 
 export default function TodoFormScreen({ route, navigation }) {
   const { task } = route.params || {};
@@ -30,7 +31,7 @@ export default function TodoFormScreen({ route, navigation }) {
   const handleSave = async () => {
     // Validação: título é obrigatório
     if (!title.trim()) {
-      Alert.alert('Erro', 'O título da tarefa é obrigatório');
+      showError('Campo obrigatório', 'O título da tarefa é obrigatório');
       return;
     }
 
@@ -38,24 +39,23 @@ export default function TodoFormScreen({ route, navigation }) {
       if (isEditing) {
         // Atualiza tarefa existente
         await updateTask(task.id, title.trim(), description.trim());
-        Alert.alert('Sucesso', 'Tarefa atualizada com sucesso!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('TodoList'),
-          },
-        ]);
+        showSuccess(
+          'Tarefa atualizada!',
+          'A tarefa foi atualizada com sucesso'
+        );
+        setTimeout(() => {
+          navigation.navigate('TodoList');
+        }, 1500);
       } else {
         // Cria nova tarefa
         await createTask(title.trim(), description.trim());
-        Alert.alert('Sucesso', 'Tarefa criada com sucesso!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.navigate('TodoList'),
-          },
-        ]);
+        showSuccess('Tarefa criada!', 'A tarefa foi criada com sucesso');
+        setTimeout(() => {
+          navigation.navigate('TodoList');
+        }, 1500);
       }
     } catch (error) {
-      Alert.alert(
+      showError(
         'Erro',
         isEditing
           ? 'Não foi possível atualizar a tarefa'

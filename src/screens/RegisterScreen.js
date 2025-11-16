@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { globalStyles } from '../styles/globalStyles';
 import { createUser } from '../database/userService';
+import { showSuccess, showError } from '../utils/toast';
 
 export default function RegisterScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -31,6 +32,7 @@ export default function RegisterScreen({ navigation }) {
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
       console.log('Validação falhou: campos vazios');
       Alert.alert('Erro', 'Por favor, preencha todos os campos');
+      showError('Erro', 'Por favor, preencha todos os campos');
       return;
     }
 
@@ -39,6 +41,7 @@ export default function RegisterScreen({ navigation }) {
     if (!emailRegex.test(email)) {
       console.log('Validação falhou: email inválido');
       Alert.alert('Erro', 'Por favor, insira um email válido');
+      showError('Erro', 'Por favor, insira um email válido');
       return;
     }
 
@@ -46,6 +49,7 @@ export default function RegisterScreen({ navigation }) {
     if (password !== confirmPassword) {
       console.log('Validação falhou: senhas não coincidem');
       Alert.alert('Erro', 'As senhas não coincidem');
+      showError('Erro', 'As senhas não coincidem');
       return;
     }
 
@@ -59,6 +63,10 @@ export default function RegisterScreen({ navigation }) {
         'Erro',
         `A senha deve ter pelo menos 6 caracteres (atual: ${password.length})`
       );
+      showError(
+        'Erro',
+        `A senha deve ter pelo menos 6 caracteres (atual: ${password.length})`
+      );
       return;
     }
 
@@ -68,15 +76,13 @@ export default function RegisterScreen({ navigation }) {
       console.log('Tentando criar usuário:', email.trim());
       const userId = await createUser(email.trim(), password);
       console.log('Usuário criado com ID:', userId);
-      Alert.alert('Sucesso', 'Conta criada com sucesso!', [
-        {
-          text: 'OK',
-          onPress: () => navigation.navigate('Login'),
-        },
-      ]);
+      showSuccess('Conta criada!', 'Sua conta foi criada com sucesso');
+      setTimeout(() => {
+        navigation.navigate('Login');
+      }, 1500);
     } catch (error) {
       console.error('Erro ao criar conta:', error);
-      Alert.alert('Erro', error.message || 'Não foi possível criar a conta');
+      showError('Erro', error.message || 'Não foi possível criar a conta');
     }
   };
 

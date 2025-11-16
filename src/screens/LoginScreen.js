@@ -11,6 +11,8 @@ import {
 import { globalStyles } from '../styles/globalStyles';
 import { loginUser } from '../database/userService';
 
+import { showSuccess, showError } from '../utils/toast';
+
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,8 +27,10 @@ export default function LoginScreen({ navigation }) {
     try {
       await loginUser(email.trim(), password);
       // Login bem-sucedido - navega para a lista de tarefas
+      showSuccess('Login bem-sucedido!');
       navigation.replace('TodoList');
     } catch (error) {
+      showError('Email ou senha inválida!');
       Alert.alert('Erro', error.message || 'Email ou senha inválidos');
       console.error(error);
     }
