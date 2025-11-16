@@ -6,14 +6,20 @@ import {
   Pressable,
   Alert,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { globalStyles } from '../styles/globalStyles';
 import { getTasks, deleteTask, toggleDone } from '../database/taskService';
+import CustomPicker from '../components/CustomPicker';
+
+import { showSuccess, showError } from '../utils/toast';
 
 export default function TodoListScreen({ navigation }) {
   const [tasks, setTasks] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'done', 'pending'
+  const [filterTitle, setFilterTitle] = useState('');
 
   // Carrega as tarefas do banco de dados
   const loadTasks = async () => {
@@ -71,9 +77,11 @@ export default function TodoListScreen({ navigation }) {
   const handleToggleDone = async (task) => {
     try {
       await toggleDone(task.id, task.done);
+      showSuccess(`${task.title}:`, 'Status atualizado');
       await loadTasks();
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível atualizar o status da tarefa');
+      showError('Erro', 'Não foi possível atualizar o status da tarefa');
       console.error(error);
     }
   };
@@ -145,24 +153,77 @@ export default function TodoListScreen({ navigation }) {
     );
   };
 
+  // Filtra as tarefas baseado nos filtros
+  const filteredTasks = tasks.filter((task) => {
+    // Filtro por status
+    if (filterStatus === 'done' && !task.done) return false;
+    if (filterStatus === 'pending' && task.done) return false;
+
+    // Filtro por título
+    if (filterTitle.trim()) {
+      const titleMatch = task.title
+        .toLowerCase()
+        .includes(filterTitle.toLowerCase().trim());
+      if (!titleMatch) return false;
+    }
+
+    return true;
+  });
+
   // Renderiza lista vazia
   const renderEmptyList = () => (
     <View style={globalStyles.emptyList}>
       <Text style={globalStyles.emptyListText}>
-        Nenhuma tarefa cadastrada{'\n'}
-        Toque no botão + para adicionar uma nova tarefa
+        {tasks.length === 0
+          ? 'Nenhuma tarefa cadastrada\nToque no botão + para adicionar uma nova tarefa'
+          : 'Nenhuma tarefa encontrada com os filtros aplicados'}
       </Text>
     </View>
   );
 
   return (
     <View style={globalStyles.container}>
+      {/* Filtros */}
+      <View style={globalStyles.filterContainer}>
+        <Text style={globalStyles.filterLabel}>Filtros</Text>
+
+        {/* Linha horizontal dividida em duas metades */}
+        <View style={globalStyles.filterRow}>
+          {/* Metade esquerda: Filtro por Status (com CustomPicker) */}
+          <View style={globalStyles.filterHalf}>
+            <Text style={globalStyles.filterRowLabel}>Status:</Text>
+            <CustomPicker
+              selectedValue={filterStatus}
+              onValueChange={(itemValue) => setFilterStatus(itemValue)}
+              items={[
+                { label: 'Todas', value: 'all' },
+                { label: 'Pendentes', value: 'pending' },
+                { label: 'Concluídas', value: 'done' },
+              ]}
+              placeholder="Selecione status..."
+            />
+          </View>
+
+          {/* Metade direita: Filtro por Título (TextInput) */}
+          <View style={globalStyles.filterHalf}>
+            <Text style={globalStyles.filterRowLabel}>Título:</Text>
+            <TextInput
+              style={globalStyles.filterInput}
+              placeholder="Buscar por título..."
+              value={filterTitle}
+              onChangeText={setFilterTitle}
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
+      </View>
+
       <FlatList
-        data={tasks}
+        data={filteredTasks}
         renderItem={renderTaskItem}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={
-          tasks.length === 0 ? { flex: 1 } : { paddingBottom: 100 }
+          filteredTasks.length === 0 ? { flex: 1 } : { paddingBottom: 100 }
         }
         ListEmptyComponent={renderEmptyList}
         refreshControl={
