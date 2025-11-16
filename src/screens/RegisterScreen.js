@@ -18,19 +18,8 @@ export default function RegisterScreen({ navigation }) {
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleRegister = async () => {
-    console.log('handleRegister chamado');
-    console.log(
-      'Email:',
-      email,
-      'Senha length:',
-      password.length,
-      'Confirm length:',
-      confirmPassword.length
-    );
-
     // Validações
     if (!email.trim() || !password.trim() || !confirmPassword.trim()) {
-      console.log('Validação falhou: campos vazios');
       Alert.alert('Erro', 'Por favor, preencha todos os campos');
       showError('Erro', 'Por favor, preencha todos os campos');
       return;
@@ -39,7 +28,6 @@ export default function RegisterScreen({ navigation }) {
     // Validação básica de email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      console.log('Validação falhou: email inválido');
       Alert.alert('Erro', 'Por favor, insira um email válido');
       showError('Erro', 'Por favor, insira um email válido');
       return;
@@ -47,7 +35,6 @@ export default function RegisterScreen({ navigation }) {
 
     // Verifica se as senhas coincidem
     if (password !== confirmPassword) {
-      console.log('Validação falhou: senhas não coincidem');
       Alert.alert('Erro', 'As senhas não coincidem');
       showError('Erro', 'As senhas não coincidem');
       return;
@@ -55,10 +42,6 @@ export default function RegisterScreen({ navigation }) {
 
     // Verifica tamanho mínimo da senha
     if (password.length < 6) {
-      console.log(
-        'Validação falhou: senha muito curta. Tamanho:',
-        password.length
-      );
       Alert.alert(
         'Erro',
         `A senha deve ter pelo menos 6 caracteres (atual: ${password.length})`
@@ -70,18 +53,13 @@ export default function RegisterScreen({ navigation }) {
       return;
     }
 
-    console.log('Todas as validações passaram, tentando criar usuário...');
-
     try {
-      console.log('Tentando criar usuário:', email.trim());
       const userId = await createUser(email.trim(), password);
-      console.log('Usuário criado com ID:', userId);
       showSuccess('Conta criada!', 'Sua conta foi criada com sucesso');
       setTimeout(() => {
         navigation.navigate('Login');
       }, 1500);
     } catch (error) {
-      console.error('Erro ao criar conta:', error);
       showError('Erro', error.message || 'Não foi possível criar a conta');
     }
   };

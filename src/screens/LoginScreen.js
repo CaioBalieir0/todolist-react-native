@@ -32,7 +32,6 @@ export default function LoginScreen({ navigation }) {
     } catch (error) {
       showError('Email ou senha inválida!');
       Alert.alert('Erro', error.message || 'Email ou senha inválidos');
-      console.error(error);
     }
   };
 

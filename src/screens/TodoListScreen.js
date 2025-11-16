@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   Pressable,
-  Alert,
   RefreshControl,
   TextInput,
 } from 'react-native';
@@ -28,7 +27,6 @@ export default function TodoListScreen({ navigation }) {
       setTasks(tasksList);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar as tarefas');
-      console.error(error);
     }
   };
 
@@ -63,9 +61,15 @@ export default function TodoListScreen({ navigation }) {
             try {
               await deleteTask(task.id);
               await loadTasks();
+              showSuccess(
+                'Tarefa excluída',
+                'A tarefa foi removida com sucesso'
+              );
             } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir a tarefa');
-              console.error(error);
+              showError(
+                'Erro',
+                error.message || 'Não foi possível excluir a tarefa'
+              );
             }
           },
         },
@@ -82,7 +86,6 @@ export default function TodoListScreen({ navigation }) {
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível atualizar o status da tarefa');
       showError('Erro', 'Não foi possível atualizar o status da tarefa');
-      console.error(error);
     }
   };
 

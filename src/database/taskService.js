@@ -156,73 +156,24 @@ export const updateTask = (id, title, description = '') => {
 // Exclui uma tarefa
 export const deleteTask = (id) => {
   return new Promise((resolve, reject) => {
-    // Verifica novamente dentro da função para garantir
-    const isWebCheck =
-      Platform.OS === 'web' ||
-      (typeof window !== 'undefined' &&
-        typeof window.localStorage !== 'undefined');
-
-    // Garante que o ID seja um número
-    const taskId = typeof id === 'string' ? parseInt(id, 10) : id;
-
-    console.log(
-      'deleteTask chamado - isWeb:',
-      isWeb,
-      'isWebCheck:',
-      isWebCheck,
-      'taskId:',
-      taskId,
-      'id original:',
-      id
-    );
-
-    if (isWeb || isWebCheck) {
+    if (isWeb) {
       try {
-        // Garante que o localStorage está disponível
         if (typeof window === 'undefined' || !window.localStorage) {
-          console.error('localStorage não disponível para exclusão');
           reject(new Error('localStorage não disponível'));
           return;
         }
 
         const tasksJson = localStorage.getItem('tasks');
-        console.log('tasksJson antes da exclusão:', tasksJson);
         const tasks = tasksJson ? JSON.parse(tasksJson) : [];
-        console.log('Tarefas antes da exclusão:', tasks.length);
-        console.log(
-          'IDs das tarefas:',
-          tasks.map((t) => ({ id: t.id, type: typeof t.id }))
-        );
 
-        const filteredTasks = tasks.filter((t) => {
-          const tId = typeof t.id === 'string' ? parseInt(t.id, 10) : t.id;
-          const match = tId !== taskId;
-          console.log(
-            `Comparando: tId=${tId} (${typeof tId}) !== taskId=${taskId} (${typeof taskId}) = ${match}`
-          );
-          return match;
-        });
-
-        console.log('Tarefas após filtro:', filteredTasks.length);
+        const filteredTasks = tasks.filter((t) => t.id !== id);
 
         if (filteredTasks.length === tasks.length) {
-          console.error(
-            'Nenhuma tarefa foi removida. Tarefa não encontrada com ID:',
-            taskId
-          );
           reject(new Error('Tarefa não encontrada'));
           return;
         }
 
         localStorage.setItem('tasks', JSON.stringify(filteredTasks));
-        console.log(
-          'Tarefa excluída com sucesso. Tarefas restantes:',
-          filteredTasks.length
-        );
-        console.log(
-          'Verificando localStorage após exclusão:',
-          localStorage.getItem('tasks')
-        );
         resolve();
       } catch (error) {
         console.error('Erro ao excluir tarefa:', error);
@@ -239,7 +190,7 @@ export const deleteTask = (id) => {
     db.transaction((tx) => {
       tx.executeSql(
         'DELETE FROM tasks WHERE id = ?;',
-        [taskId],
+        [id],
         (_, { rowsAffected }) => {
           if (rowsAffected > 0) {
             resolve();

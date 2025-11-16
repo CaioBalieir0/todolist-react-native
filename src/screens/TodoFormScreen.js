@@ -61,7 +61,6 @@ export default function TodoFormScreen({ route, navigation }) {
           ? 'Não foi possível atualizar a tarefa'
           : 'Não foi possível criar a tarefa'
       );
-      console.error(error);
     }
   };
 
