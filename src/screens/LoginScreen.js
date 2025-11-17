@@ -10,12 +10,13 @@ import {
 } from 'react-native';
 import { globalStyles } from '../styles/globalStyles';
 import { loginUser } from '../database/userService';
-
+import { useAuth } from '../context/AuthContext';
 import { showSuccess, showError } from '../utils/toast';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { login } = useAuth();
 
   const handleLogin = async () => {
     // Validação local: email e senha não podem estar vazios
@@ -25,7 +26,9 @@ export default function LoginScreen({ navigation }) {
     }
 
     try {
-      await loginUser(email.trim(), password);
+      const user = await loginUser(email.trim(), password);
+      // Salva o usuário no contexto
+      login(user);
       // Login bem-sucedido - navega para a lista de tarefas
       showSuccess('Login bem-sucedido!');
       navigation.replace('TodoList');

@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { globalStyles } from '../styles/globalStyles';
 import { createTask, updateTask } from '../database/taskService';
+import { useAuth } from '../context/AuthContext';
 import { showSuccess, showError } from '../utils/toast';
 
 export default function TodoFormScreen({ route, navigation }) {
+  const { user } = useAuth();
   const { task } = route.params || {};
   const isEditing = !!task;
 
@@ -35,10 +37,15 @@ export default function TodoFormScreen({ route, navigation }) {
       return;
     }
 
+    if (!user || !user.id) {
+      showError('Erro', 'Usuário não está logado');
+      return;
+    }
+
     try {
       if (isEditing) {
         // Atualiza tarefa existente
-        await updateTask(task.id, title.trim(), description.trim());
+        await updateTask(task.id, title.trim(), description.trim(), user.id);
         showSuccess(
           'Tarefa atualizada!',
           'A tarefa foi atualizada com sucesso'
@@ -48,7 +55,7 @@ export default function TodoFormScreen({ route, navigation }) {
         }, 1500);
       } else {
         // Cria nova tarefa
-        await createTask(title.trim(), description.trim());
+        await createTask(title.trim(), description.trim(), user.id);
         showSuccess('Tarefa criada!', 'A tarefa foi criada com sucesso');
         setTimeout(() => {
           navigation.navigate('TodoList');
@@ -57,10 +64,12 @@ export default function TodoFormScreen({ route, navigation }) {
     } catch (error) {
       showError(
         'Erro',
-        isEditing
-          ? 'Não foi possível atualizar a tarefa'
-          : 'Não foi possível criar a tarefa'
+        error.message ||
+          (isEditing
+            ? 'Não foi possível atualizar a tarefa'
+            : 'Não foi possível criar a tarefa')
       );
+      console.error(error);
     }
   };
 

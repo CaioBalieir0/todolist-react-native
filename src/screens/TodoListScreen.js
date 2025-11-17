@@ -6,15 +6,17 @@ import {
   Pressable,
   RefreshControl,
   TextInput,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { globalStyles } from '../styles/globalStyles';
 import { getTasks, deleteTask, toggleDone } from '../database/taskService';
 import CustomPicker from '../components/CustomPicker';
-
+import { useAuth } from '../context/AuthContext';
 import { showSuccess, showError } from '../utils/toast';
 
 export default function TodoListScreen({ navigation }) {
+  const { user, logout } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'done', 'pending'
@@ -22,11 +24,17 @@ export default function TodoListScreen({ navigation }) {
 
   // Carrega as tarefas do banco de dados
   const loadTasks = async () => {
+    if (!user || !user.id) {
+      console.error('Usuário não está logado');
+      return;
+    }
+
     try {
-      const tasksList = await getTasks();
+      const tasksList = await getTasks(user.id);
       setTasks(tasksList);
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar as tarefas');
+      console.error(error);
     }
   };
 
@@ -34,8 +42,89 @@ export default function TodoListScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       loadTasks();
-    }, [])
+    }, [user])
   );
+
+  // Configura o header com avatar e botão de logout
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            marginRight: 10,
+          }}
+        >
+          {/* Avatar e Nome do Usuário */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              marginRight: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: '#007AFF',
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginRight: 8,
+              }}
+            >
+              <Text
+                style={{
+                  color: '#fff',
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                }}
+              >
+                {user?.email ? user.email.charAt(0).toUpperCase() : 'U'}
+              </Text>
+            </View>
+            <Text
+              style={{
+                fontSize: 14,
+                fontWeight: '600',
+                color: '#333',
+                maxWidth: 120,
+              }}
+              numberOfLines={1}
+            >
+              {user?.email || 'Usuário'}
+            </Text>
+          </View>
+
+          {/* Botão de Logout */}
+          <Pressable
+            onPress={() => {
+              logout();
+              navigation.replace('Login');
+            }}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 6,
+              backgroundColor: '#FF3B30',
+            }}
+          >
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: 14,
+                fontWeight: '600',
+              }}
+            >
+              Sair
+            </Text>
+          </Pressable>
+        </View>
+      ),
+    });
+  }, [navigation, user, logout]);
 
   // Atualiza a lista ao puxar para baixo
   const onRefresh = async () => {
@@ -58,8 +147,13 @@ export default function TodoListScreen({ navigation }) {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
+            if (!user || !user.id) {
+              showError('Erro', 'Usuário não está logado');
+              return;
+            }
+
             try {
-              await deleteTask(task.id);
+              await deleteTask(task.id, user.id);
               await loadTasks();
               showSuccess(
                 'Tarefa excluída',
@@ -79,8 +173,13 @@ export default function TodoListScreen({ navigation }) {
 
   // Marca tarefa como concluída ou pendente
   const handleToggleDone = async (task) => {
+    if (!user || !user.id) {
+      showError('Erro', 'Usuário não está logado');
+      return;
+    }
+
     try {
-      await toggleDone(task.id, task.done);
+      await toggleDone(task.id, task.done, user.id);
       showSuccess(`${task.title}:`, 'Status atualizado');
       await loadTasks();
     } catch (error) {

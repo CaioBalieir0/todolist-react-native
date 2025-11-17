@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import Toast from 'react-native-toast-message';
+import { AuthProvider } from './src/context/AuthContext';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import TodoListScreen from './src/screens/TodoListScreen';
@@ -12,7 +13,7 @@ const Stack = createStackNavigator();
 
 export default function App() {
   return (
-    <>
+    <AuthProvider>
       <StatusBar style="auto" />
       <NavigationContainer>
         <Stack.Navigator initialRouteName="Login">
@@ -43,6 +44,6 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
       <Toast />
-    </>
+    </AuthProvider>
   );
 }

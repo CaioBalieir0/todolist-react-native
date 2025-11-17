@@ -9,16 +9,23 @@ const isWeb =
 // Inicializa o banco quando o serviço é importado
 initDatabase().catch(console.error);
 
-// Retorna todas as tarefas
-export const getTasks = () => {
+// Retorna todas as tarefas de um usuário
+export const getTasks = (idUser) => {
   return new Promise((resolve, reject) => {
+    if (!idUser) {
+      reject(new Error('ID do usuário é obrigatório'));
+      return;
+    }
+
     if (isWeb) {
       try {
         const tasksJson = localStorage.getItem('tasks');
         const tasks = tasksJson ? JSON.parse(tasksJson) : [];
-        // Ordena por id descendente
-        tasks.sort((a, b) => b.id - a.id);
-        resolve(tasks);
+        // Filtra tarefas do usuário e ordena por id descendente
+        const userTasks = tasks
+          .filter((task) => task.idUser === idUser)
+          .sort((a, b) => b.id - a.id);
+        resolve(userTasks);
       } catch (error) {
         console.error('Erro ao buscar tarefas:', error);
         reject(error);
@@ -33,8 +40,8 @@ export const getTasks = () => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'SELECT * FROM tasks ORDER BY id DESC;',
-        [],
+        'SELECT * FROM tasks WHERE idUser = ? ORDER BY id DESC;',
+        [idUser],
         (_, { rows }) => {
           const tasks = [];
           for (let i = 0; i < rows.length; i++) {
@@ -43,6 +50,7 @@ export const getTasks = () => {
               title: rows.item(i).title,
               description: rows.item(i).description || '',
               done: rows.item(i).done === 1,
+              idUser: rows.item(i).idUser,
             });
           }
           resolve(tasks);
@@ -57,8 +65,13 @@ export const getTasks = () => {
 };
 
 // Cria uma nova tarefa
-export const createTask = (title, description = '') => {
+export const createTask = (title, description = '', idUser) => {
   return new Promise((resolve, reject) => {
+    if (!idUser) {
+      reject(new Error('ID do usuário é obrigatório'));
+      return;
+    }
+
     if (isWeb) {
       try {
         const tasksJson = localStorage.getItem('tasks');
@@ -70,6 +83,7 @@ export const createTask = (title, description = '') => {
           title,
           description,
           done: false,
+          idUser: idUser,
         };
         tasks.push(newTask);
         localStorage.setItem('tasks', JSON.stringify(tasks));
@@ -88,8 +102,8 @@ export const createTask = (title, description = '') => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'INSERT INTO tasks (title, description, done) VALUES (?, ?, 0);',
-        [title, description],
+        'INSERT INTO tasks (title, description, done, idUser) VALUES (?, ?, 0, ?);',
+        [title, description, idUser],
         (_, { insertId }) => {
           resolve(insertId);
         },
@@ -102,18 +116,28 @@ export const createTask = (title, description = '') => {
   });
 };
 
-// Atualiza uma tarefa existente
-export const updateTask = (id, title, description = '') => {
+// Atualiza uma tarefa existente (verifica se pertence ao usuário)
+export const updateTask = (id, title, description = '', idUser) => {
   return new Promise((resolve, reject) => {
+    if (!idUser) {
+      reject(new Error('ID do usuário é obrigatório'));
+      return;
+    }
     if (isWeb) {
       try {
         const tasksJson = localStorage.getItem('tasks');
         const tasks = tasksJson ? JSON.parse(tasksJson) : [];
-        const taskIndex = tasks.findIndex((t) => t.id === id);
+        const taskIndex = tasks.findIndex((t) => {
+          const tId = typeof t.id === 'string' ? parseInt(t.id, 10) : t.id;
+          const finalId = typeof id === 'string' ? parseInt(id, 10) : id;
+          return tId === finalId && t.idUser === idUser;
+        });
+
         if (taskIndex === -1) {
-          reject(new Error('Tarefa não encontrada'));
+          reject(new Error('Tarefa não encontrada ou não pertence ao usuário'));
           return;
         }
+
         tasks[taskIndex] = {
           ...tasks[taskIndex],
           title,
@@ -135,13 +159,15 @@ export const updateTask = (id, title, description = '') => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'UPDATE tasks SET title = ?, description = ? WHERE id = ?;',
-        [title, description, id],
+        'UPDATE tasks SET title = ?, description = ? WHERE id = ? AND idUser = ?;',
+        [title, description, id, idUser],
         (_, { rowsAffected }) => {
           if (rowsAffected > 0) {
             resolve();
           } else {
-            reject(new Error('Tarefa não encontrada'));
+            reject(
+              new Error('Tarefa não encontrada ou não pertence ao usuário')
+            );
           }
         },
         (_, error) => {
@@ -153,9 +179,13 @@ export const updateTask = (id, title, description = '') => {
   });
 };
 
-// Exclui uma tarefa
-export const deleteTask = (id) => {
+// Exclui uma tarefa (verifica se pertence ao usuário)
+export const deleteTask = (id, idUser) => {
   return new Promise((resolve, reject) => {
+    if (!idUser) {
+      reject(new Error('ID do usuário é obrigatório'));
+      return;
+    }
     if (isWeb) {
       try {
         if (typeof window === 'undefined' || !window.localStorage) {
@@ -166,10 +196,16 @@ export const deleteTask = (id) => {
         const tasksJson = localStorage.getItem('tasks');
         const tasks = tasksJson ? JSON.parse(tasksJson) : [];
 
-        const filteredTasks = tasks.filter((t) => t.id !== id);
+        // Filtra removendo a tarefa que corresponde ao id E pertence ao usuário
+        const filteredTasks = tasks.filter((t) => {
+          const tId = typeof t.id === 'string' ? parseInt(t.id, 10) : t.id;
+          const finalId = typeof id === 'string' ? parseInt(id, 10) : id;
+          // Mantém tarefas que não são a que queremos excluir OU não pertencem ao usuário
+          return !(tId === finalId && t.idUser === idUser);
+        });
 
         if (filteredTasks.length === tasks.length) {
-          reject(new Error('Tarefa não encontrada'));
+          reject(new Error('Tarefa não encontrada ou não pertence ao usuário'));
           return;
         }
 
@@ -189,13 +225,15 @@ export const deleteTask = (id) => {
 
     db.transaction((tx) => {
       tx.executeSql(
-        'DELETE FROM tasks WHERE id = ?;',
-        [id],
+        'DELETE FROM tasks WHERE id = ? AND idUser = ?;',
+        [id, idUser],
         (_, { rowsAffected }) => {
           if (rowsAffected > 0) {
             resolve();
           } else {
-            reject(new Error('Tarefa não encontrada'));
+            reject(
+              new Error('Tarefa não encontrada ou não pertence ao usuário')
+            );
           }
         },
         (_, error) => {
@@ -207,18 +245,28 @@ export const deleteTask = (id) => {
   });
 };
 
-// Alterna o status de conclusão da tarefa
-export const toggleDone = (id, currentValue) => {
+// Alterna o status de conclusão da tarefa (verifica se pertence ao usuário)
+export const toggleDone = (id, currentValue, idUser) => {
   return new Promise((resolve, reject) => {
+    if (!idUser) {
+      reject(new Error('ID do usuário é obrigatório'));
+      return;
+    }
     if (isWeb) {
       try {
         const tasksJson = localStorage.getItem('tasks');
         const tasks = tasksJson ? JSON.parse(tasksJson) : [];
-        const taskIndex = tasks.findIndex((t) => t.id === id);
+        const taskIndex = tasks.findIndex((t) => {
+          const tId = typeof t.id === 'string' ? parseInt(t.id, 10) : t.id;
+          const finalId = typeof id === 'string' ? parseInt(id, 10) : id;
+          return tId === finalId && t.idUser === idUser;
+        });
+
         if (taskIndex === -1) {
-          reject(new Error('Tarefa não encontrada'));
+          reject(new Error('Tarefa não encontrada ou não pertence ao usuário'));
           return;
         }
+
         tasks[taskIndex] = {
           ...tasks[taskIndex],
           done: !currentValue,
@@ -240,13 +288,15 @@ export const toggleDone = (id, currentValue) => {
     const newValue = currentValue ? 0 : 1;
     db.transaction((tx) => {
       tx.executeSql(
-        'UPDATE tasks SET done = ? WHERE id = ?;',
-        [newValue, id],
+        'UPDATE tasks SET done = ? WHERE id = ? AND idUser = ?;',
+        [newValue, id, idUser],
         (_, { rowsAffected }) => {
           if (rowsAffected > 0) {
             resolve();
           } else {
-            reject(new Error('Tarefa não encontrada'));
+            reject(
+              new Error('Tarefa não encontrada ou não pertence ao usuário')
+            );
           }
         },
         (_, error) => {
