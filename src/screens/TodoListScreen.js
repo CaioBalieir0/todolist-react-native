@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { globalStyles } from '../styles/globalStyles';
 import { getTasks, deleteTask, toggleDone } from '../database/taskService';
 import CustomPicker from '../components/CustomPicker';
+import ConfirmModal from '../components/ConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { showSuccess, showError } from '../utils/toast';
 
@@ -21,6 +22,9 @@ export default function TodoListScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'done', 'pending'
   const [filterTitle, setFilterTitle] = useState('');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState(null);
 
   // Carrega as tarefas do banco de dados
   const loadTasks = async () => {
@@ -100,10 +104,7 @@ export default function TodoListScreen({ navigation }) {
 
           {/* Botão de Logout */}
           <Pressable
-            onPress={() => {
-              logout();
-              navigation.replace('Login');
-            }}
+            onPress={() => setLogoutModalVisible(true)}
             style={{
               paddingHorizontal: 12,
               paddingVertical: 6,
@@ -135,40 +136,40 @@ export default function TodoListScreen({ navigation }) {
 
   // Exclui uma tarefa com confirmação
   const handleDelete = (task) => {
-    Alert.alert(
-      'Confirmar Exclusão',
-      `Deseja realmente excluir a tarefa "${task.title}"?`,
-      [
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            if (!user || !user.id) {
-              showError('Erro', 'Usuário não está logado');
-              return;
-            }
+    setTaskToDelete(task);
+    setDeleteModalVisible(true);
+  };
 
-            try {
-              await deleteTask(task.id, user.id);
-              await loadTasks();
-              showSuccess(
-                'Tarefa excluída',
-                'A tarefa foi removida com sucesso'
-              );
-            } catch (error) {
-              showError(
-                'Erro',
-                error.message || 'Não foi possível excluir a tarefa'
-              );
-            }
-          },
-        },
-      ]
+  // Confirma a exclusão da tarefa
+  const confirmDelete = async () => {
+    if (!taskToDelete || !user || !user.id) {
+      showError('Erro', 'Usuário não está logado');
+      setDeleteModalVisible(false);
+      setTaskToDelete(null);
+      return;
+    }
+
+    try {
+      await deleteTask(taskToDelete.id, user.id);
+      await loadTasks();
+      showSuccess('Tarefa excluída', 'A tarefa foi removida com sucesso');
+    } catch (error) {
+      showError('Erro', error.message || 'Não foi possível excluir a tarefa');
+    } finally {
+      setDeleteModalVisible(false);
+      setTaskToDelete(null);
+    }
+  };
+
+  // Confirma o logout
+  const confirmLogout = () => {
+    logout();
+    navigation.replace('Login');
+    showSuccess(
+      'Usuário deslogado com sucesso!',
+      'Você será redirecionado para a tela de login'
     );
+    setLogoutModalVisible(false);
   };
 
   // Marca tarefa como concluída ou pendente
@@ -340,6 +341,37 @@ export default function TodoListScreen({ navigation }) {
       >
         <Text style={globalStyles.fabText}>+</Text>
       </Pressable>
+
+      {/* Modal de confirmação para deletar tarefa */}
+      <ConfirmModal
+        visible={deleteModalVisible}
+        onClose={() => {
+          setDeleteModalVisible(false);
+          setTaskToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        title="Confirmar Exclusão"
+        message={
+          taskToDelete
+            ? `Deseja realmente excluir a tarefa "${taskToDelete.title}"?`
+            : 'Deseja realmente excluir esta tarefa?'
+        }
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        confirmButtonStyle="destructive"
+      />
+
+      {/* Modal de confirmação para logout */}
+      <ConfirmModal
+        visible={logoutModalVisible}
+        onClose={() => setLogoutModalVisible(false)}
+        onConfirm={confirmLogout}
+        title="Confirmar Logout"
+        message="Deseja realmente sair da sua conta?"
+        confirmText="Sair"
+        cancelText="Cancelar"
+        confirmButtonStyle="destructive"
+      />
     </View>
   );
 }
